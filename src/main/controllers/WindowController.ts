@@ -1,10 +1,12 @@
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, Menu, shell } from 'electron';
 import { join } from 'path';
 import { is } from '@electron-toolkit/utils';
 import icon from '../../../resources/logos/logo-1.png?asset';
 
 export class WindowController {
     private mainWindow: BrowserWindow | null = null;
+    private webContents: Electron.WebContents | null = null;
+    private helpWindow: BrowserWindow | null = null;
 
     createWindow(): BrowserWindow {
         this.mainWindow = new BrowserWindow({
@@ -13,7 +15,14 @@ export class WindowController {
             minWidth: 800,
             minHeight: 600,
             show: false,
+            center: true,
+            title: 'Notes',
+            frame: true,
             autoHideMenuBar: true,
+            vibrancy: 'under-window',
+            visualEffectState: 'active',
+            titleBarStyle: 'hidden',
+            trafficLightPosition: { x: 15, y: 10 },
             ...(process.platform === 'linux' ? { icon } : {}),
             webPreferences: {
                 preload: join(__dirname, '../preload/index.js'),
@@ -24,12 +33,76 @@ export class WindowController {
             },
         });
 
+        this.webContents = this.mainWindow.webContents;
+
+        const template = [
+            {
+                role: 'fileMenu',
+                submenu: [
+                    {
+                        label: 'Create New',
+                        click: () => {
+                            this.webContents?.send('open-modal');
+                        },
+                        accelerator: 'CmdOrCtrl+O',
+                    },
+                    {
+                        label: 'Search Items',
+                        click: () => {
+                            this.webContents?.send('focus-search');
+                        },
+                        accelerator: 'CmdOrCtrl+S',
+                    },
+                ],
+            },
+            {
+                role: 'editMenu',
+            },
+            {
+                role: 'windowMenu',
+            },
+            {
+                label: 'Help',
+                submenu: [
+                    {
+                        label: 'Learn more',
+                        click: () => {
+                                this.createHelpWindow();
+                        },
+                    },
+                ],
+            },
+        ] as (Electron.MenuItemConstructorOptions | Electron.MenuItem)[];
+
+        if (process.platform === 'darwin') {
+            template.unshift({
+                role: 'appMenu',
+            });
+        }
+        const menu = Menu.buildFromTemplate(template);
+        Menu.setApplicationMenu(menu);
+
         this.setupWindowEvents();
         this.loadContent();
         this.hookLogs();
 
         return this.mainWindow;
     }
+
+    createHelpWindow = () => {
+        this.helpWindow = new BrowserWindow({
+            maxWidth: 2000,
+            maxHeight: 2000,
+            width: 1200,
+            height: 800,
+            webPreferences: {
+                contextIsolation: true,
+                nodeIntegration: false,
+            },
+        });
+
+        this.helpWindow.loadURL('https://github.com/BradMoyetones/notes');
+    };
 
     private setupWindowEvents(): void {
         if (!this.mainWindow) return;
@@ -103,6 +176,25 @@ export class WindowController {
         this.mainWindow?.close();
     }
 
+    // Función auxiliar para convertir cualquier cosa a texto legible
+    private formatArgs = (args: any) => {
+        return args
+            .map((arg) => {
+                if (typeof arg === 'object' && arg !== null) {
+                    // Si es un Error nativo, queremos ver el mensaje o el stack
+                    if (arg instanceof Error) return arg.stack || arg.message;
+                    // Si es un objeto, lo pasamos a JSON con indentación (2 espacios)
+                    try {
+                        return JSON.stringify(arg, null, 2);
+                    } catch (e) {
+                        return '[Circular Object]';
+                    }
+                }
+                return arg;
+            })
+            .join(' ');
+    };
+
     private hookLogs() {
         if (!this.mainWindow) return;
 
@@ -115,7 +207,7 @@ export class WindowController {
             if (!this.mainWindow?.webContents.isDestroyed()) {
                 this.mainWindow?.webContents.send('app-log', {
                     type: 'info',
-                    message: args.join(' '),
+                    message: this.formatArgs(args),
                     time: new Date().toLocaleTimeString(),
                 });
             }
@@ -126,7 +218,7 @@ export class WindowController {
             if (!this.mainWindow?.webContents.isDestroyed()) {
                 this.mainWindow?.webContents.send('app-log', {
                     type: 'error',
-                    message: args.join(' '),
+                    message: this.formatArgs(args),
                     time: new Date().toLocaleTimeString(),
                 });
             }
@@ -138,7 +230,7 @@ export class WindowController {
             if (!this.mainWindow?.webContents.isDestroyed()) {
                 this.mainWindow?.webContents.send('app-log', {
                     type: 'warn',
-                    message: args.join(' '),
+                    message: this.formatArgs(args),
                     time: new Date().toLocaleTimeString(),
                 });
             }
