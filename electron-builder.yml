@@ -1,0 +1,98 @@
+appId: com.notes.notes-app
+productName: Notes
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # Excluir DB
+  # - '!out/renderer/store/**'
+  # - '!database/**'
+asarUnpack:
+  # - resources/**
+  # - out/renderer/assets/**
+  # - out/renderer/img/**
+  # - out/renderer/index.html
+  # - drizzle/migrations/**
+  # - "**/node_modules/better-sqlite3/**/*" # Solo SQLite necesita estar afuera
+  - "resources/**"
+  # - "drizzle/migrations/**"
+  - releases/notes/latest.md
+win:
+  icon: resources/logos/logo-1.png
+  executableName: Notes
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  # --- CONFIGURACIÓN DEL ASISTENTE ---
+  oneClick: false                           # DESACTIVADO para permitir el asistente (pestañas)
+  allowToChangeInstallationDirectory: true  # Permite al usuario elegir la ruta (C:\Program Files, etc.)
+  license: build/license.txt                # Muestra la pestaña de Términos y Condiciones
+  warningsAsErrors: false # <--- ESTO ES LO QUE ENCONTRASTE. Agrégalo aquí.
+  displayLanguageSelector: true
+
+  # --- INTERFAZ POST-INSTALACIÓN ---
+  runAfterFinish: true                      # Muestra el checkbox "Ejecutar al finalizar"
+  createDesktopShortcut: true             # Crea acceso directo en escritorio
+  createStartMenuShortcut: true             # Crea acceso directo en el menú inicio
+  
+  # --- PERSONALIZACIÓN VISUAL ---
+  # Para que se vea profesional, usa archivos .bmp (dimensiones recomendadas abajo)
+  installerSidebar: build/installerSidebar.bmp   # Imagen lateral (164 x 314 px)
+  installerHeader: build/installerHeader.bmp     # Imagen de cabecera (150 x 57 px)
+  
+  # --- DATOS DEL ARCHIVO ---
+  artifactName: ${name}-${version}-${arch}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  allowElevation: true                      # Pide permisos de admin si se instala en Program Files
+
+  # Incluimos el script de personalización
+  # include: build/installer.nsh
+mac:
+  category: public.app-category.productivity
+  icon: resources/logos/logo-1.png
+  target: # Arquitecturas Intel y M
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSSystemPolicyAllFiles: Application requires full system access.
+    - NSAppleEventsUsageDescription: Application needs access to other apps.
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  icon: resources/logos/logo-1.png
+  artifactName: ${name}-${version}-${arch}.${ext}
+linux:
+  icon: resources/logos/logo-1.png
+  target:
+    - target: AppImage # El estándar para Linux (funciona en todo lado)
+      arch: [x64] # Aseguramos x64
+    - target: deb # Para Ubuntu/Debian
+      arch: [x64]
+  maintainer: electronjs.org
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}-${arch}.${ext} # ${arch}
+asar: true
+npmRebuild: true
+publish:
+  provider: github
+  owner: BradMoyetones
+  repo: notes
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+releaseInfo:
+  releaseNotesFile: releases/notes/latest.md
